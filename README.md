@@ -18,6 +18,7 @@ A wrapper that enables `minGRU` to function like PyTorch's GRU, including:
 - Multi-layer support.
 - Bidirectional processing.
 - Compatibility with standard RNN pipelines.
+  
 This is mostly for comparison with standard models.
 
 ### 3. **MambaModule**
@@ -25,7 +26,8 @@ A modular block combining:
 - Residual connections.
 - Two-strand processing.
 - Convolutions and normalization.
-  For my application, this yielded the best results.
+  
+For my application, this yielded the best results.
 
 ### 4. **StackedMambaMinGRU**
 A stack of `MambaModule` layers for deep sequence modeling, with options for dimension projection.
