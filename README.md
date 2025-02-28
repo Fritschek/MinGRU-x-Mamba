@@ -58,8 +58,7 @@ To enhance both performance and comparability, the following files have been add
 The fused CUDA kernel must be compiled before use. To build the extension, follow these steps:
 
 1. Ensure you have PyTorch installed with CUDA support.
-2. Navigate to the project directory.
-3. Run the following command to compile the kernel:
+2. Run the following command in the project directory to compile the kernel:
 
 ```bash
 python setup.py build_ext --inplace
