@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn import Linear
-import fused_parallel_scan2 as fused_parallel_scan
+import fused_parallel_scan as fused_parallel_scan
 
 # Import the non-fused minGRU
 from mingru_stacks import minGRU as MinGRUImported
@@ -291,7 +291,7 @@ def test_and_compare_models(models, x):
 
 # Generate a test input batch
 batch_size = 500
-seq_len = 1000
+seq_len = 100
 input_size = 10
 
 x_test = torch.randn(batch_size, seq_len, input_size, device=device)
