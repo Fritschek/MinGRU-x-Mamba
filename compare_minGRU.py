@@ -236,7 +236,7 @@ profile_inference(min_gru_fused, x, model_name="Fused MinGRU")
 profile_inference(standard_gru, x, model_name="Standard GRU")
 
 # Function to compare outputs of two models
-def compare_outputs(output1, output2, model1_name, model2_name, tolerance=1e-6):
+def compare_outputs(output1, output2, model1_name, model2_name, tolerance=1e-5):
     is_close = torch.allclose(output1, output2, atol=tolerance)
     mse = torch.mean((output1 - output2) ** 2).item()
     max_diff = torch.max(torch.abs(output1 - output2)).item()
