@@ -117,6 +117,9 @@ class MambaModule(nn.Module):
         batch_size = x.size(0)
         
         residual = x
+        
+        # Final LayerNorm for output normalization
+          
 
         # Initialize hidden state differently for training and inference
         if h_0 is None:
@@ -157,7 +160,10 @@ class MambaModule(nn.Module):
 
         # Multiply the two strands element-wise
         x_out = strand1 * strand2
+        
+        
 
+        
         # Down projection to original input size with bias handling
         if self.proj_down==True:
             x_out = self.down_projection(x_out)
@@ -314,8 +320,10 @@ class minGRU(nn.Module):
         - h_all: (batch_size, seq_len, hidden_size) The hidden states for the entire sequence.
         """
         _, seq_len, _ = x.size()
-        h_all = []
-        
+        h_all = []  # List to hold all hidden states
+        if h_0 is None:
+            batch_size = x.size(0)
+            h_0 = torch.zeros(batch_size, self.hidden_size, device=x.device)
         def g(x): 
             return torch.where(x >= 0, x + 0.5, torch.sigmoid(x))
 
@@ -337,17 +345,25 @@ class minGRU(nn.Module):
 
     def forward_training(self, x, h_0=None):
         # x: (batch_size, seq_len, input_size)
+
         def log_g(x): 
             return torch.where(x >= 0, (F.relu(x)+0.5).log(),-F.softplus(-x))
-        
+            
+                # Initialize h_0 with zeros; adjust shape if necessary
+
+        if h_0 is None:
+        # Initialize h_0 with zeros; adjust shape if necessary
+            batch_size = x.size(0)
+            h_0 = torch.zeros(batch_size, 1, self.hidden_size, device=x.device)
+
         # Compute k for z gate
         k = self.linear_z(x)  # (batch_size, seq_len, hidden_size)
         log_z = -F.softplus(-k)  # log(z)
         log_coeffs = -F.softplus(k)  # log(1 - z)
 
         # Compute h_tilde
-        log_h_0 = log_g(h_0)
-        log_tilde_h = log_g(self.linear_h(x))
+        log_h_0 = log_g(h_0)  # log(g(h_0))
+        log_tilde_h = log_g(self.linear_h(x)) # log(g(h_tilde))
 
         # Concatenate initial hidden state with inputs
         log_values = torch.cat([log_h_0, log_z + log_tilde_h], dim=1)  # (batch_size, seq_len + 1, hidden_size)
@@ -363,3 +379,4 @@ class minGRU(nn.Module):
         log_h0_plus_b_star = torch.logcumsumexp(log_values - a_star, dim=1)  # (batch_size, seq_len + 1, hidden_size)
         log_h = a_star + log_h0_plus_b_star
         return torch.exp(log_h)[:, 1:]
+    

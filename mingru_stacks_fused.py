@@ -291,8 +291,6 @@ class minGRU(nn.Module):
         self.linear_z = nn.Linear(input_size, hidden_size, bias=bias)
         self.linear_h = nn.Linear(input_size, hidden_size, bias=bias)
 
-        self.linear_fused = nn.Linear(input_size, 2 * hidden_size, bias=bias)
-
         self.reset_parameters()
         
     def reset_parameters(self):
@@ -355,25 +353,22 @@ class minGRU(nn.Module):
         def log_g(x): 
             return torch.where(x >= 0, (F.relu(x)+0.5).log(),-F.softplus(-x))
         
-        fused = self.linear_fused(x)
-        k, h_candidate = torch.split(fused, self.hidden_size, dim=-1)
         # Compute k for z gate
-        # k = self.linear_z(x)  # (batch_size, seq_len, hidden_size)
+        k = self.linear_z(x)  # (batch_size, seq_len, hidden_size)
         log_z = -F.softplus(-k)  # log(z)
         log_coeffs = -F.softplus(k)  # log(1 - z)
 
         # Compute h_tilde
         log_h_0 = log_g(h_0)  # log(g(h_0))
-        log_tilde_h = log_g(h_candidate)#self.linear_h(x)) # log(g(h_tilde))
+        log_tilde_h = log_g(self.linear_h(x)) # log(g(h_tilde))
 
         # Concatenate initial hidden state with inputs
-        log_z.add_(log_tilde_h)
         log_values = torch.cat([log_h_0, log_z], dim=1) # (batch_size, seq_len + 1, hidden_size)
-        #log_values = torch.cat([log_h_0, log_z + log_tilde_h], dim=1)  
+        log_values = torch.cat([log_h_0, log_z + log_tilde_h], dim=1)  
 
         # Perform the parallel scan using log-space computations
         h = self.fused_parallel_scan_fn(log_coeffs, log_values)  # (batch_size, seq_len, hidden_size)
-        return h
+        return torch.exp(h)
 
     def fused_parallel_scan_fn(self,log_coeffs, log_values):
         return fused_parallel_scan.fused_parallel_scan_cuda(log_coeffs, log_values)

@@ -16,8 +16,10 @@ __global__ void fused_parallel_scan_kernel(
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     int total = batch * hidden;
     if (idx >= total) return;
+
     int batch_idx = idx / hidden;
     int hid_idx = idx % hidden;
+
     
     // Compute pointer offsets.
     const scalar_t* coeff_ptr = log_coeffs + batch_idx * T * hidden;
@@ -42,11 +44,12 @@ __global__ void fused_parallel_scan_kernel(
             Y = x;
         } else {
             scalar_t m = fmaxf(Y, x);
-            Y = m + logf(expf(Y - m) + expf(x - m));
+            //Y = m + logf(expf(Y - m) + expf(x - m));
+             Y = m + logf(fmaxf(expf(Y - m) + expf(x - m), 1e-30f));  // Avoid log(0) precision errors
         }
         scalar_t log_h = a + Y;
         if (t > 0) {
-            out_ptr[(t - 1) * hidden + hid_idx] = expf(log_h);
+            out_ptr[(t - 1) * hidden + hid_idx] = log_h;
         }
     }
 }
