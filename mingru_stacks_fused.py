@@ -173,7 +173,8 @@ class MambaModule(nn.Module):
         # Add the residual connection and normalize
         x_out = x_out + residual #self.output_ln(x_out + residual)
 
-        return x_out, strand1[:, -1:]
+        last_hidden = strand1[:, -1:, :] if self.training else strand1[:, -1, :]
+        return x_out, last_hidden
 
 class WrappedMinGRU(nn.Module):
     def __init__(self, input_size, hidden_size, num_layers=1, bidirectional=False, bias=True, batch_first=True):
@@ -323,6 +324,14 @@ class minGRU(nn.Module):
         """
         _, seq_len, _ = x.size()
         h_all = []  # List to hold all hidden states
+
+        if h_0 is None:
+            batch_size = x.size(0)
+            h_0 = torch.zeros(batch_size, self.hidden_size, device=x.device)
+        elif h_0.dim() == 3 and h_0.size(1) == 1:
+            h_0 = h_0[:, 0, :]
+        elif h_0.dim() != 2:
+            raise ValueError(f"h_0 must have shape (B, H) for inference, got {tuple(h_0.shape)}")
         
         def g(x): 
             return torch.where(x >= 0, x + 0.5, torch.sigmoid(x))
@@ -345,9 +354,13 @@ class minGRU(nn.Module):
 
     def forward_training(self, x, h_0=None):
         # x: (batch_size, seq_len, input_size)
+        batch_size = x.size(0)
         if h_0 is None:
-        # Initialize h_0 with zeros; adjust shape if necessary
             h_0 = torch.zeros(batch_size, 1, self.hidden_size, device=x.device)
+        elif h_0.dim() == 2:
+            h_0 = h_0.unsqueeze(1)
+        elif h_0.dim() != 3 or h_0.size(1) != 1:
+            raise ValueError(f"h_0 must have shape (B, 1, H) or (B, H) for training, got {tuple(h_0.shape)}")
 
         #@torch.jit.script
         def log_g(x): 
@@ -363,7 +376,6 @@ class minGRU(nn.Module):
         log_tilde_h = log_g(self.linear_h(x)) # log(g(h_tilde))
 
         # Concatenate initial hidden state with inputs
-        log_values = torch.cat([log_h_0, log_z], dim=1) # (batch_size, seq_len + 1, hidden_size)
         log_values = torch.cat([log_h_0, log_z + log_tilde_h], dim=1)  
 
         # Perform the parallel scan using log-space computations
